@@ -10,3 +10,4 @@ pipelines/*
 
 .venv
 venv/
+myenv/

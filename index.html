@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mind Map with Plus Icon Feature</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            background-color: #f5f5f5;
+        }
+
+        #toolbar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        #plusIcon {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #3b433b;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 20px;
+            cursor: pointer;
+            display: none;
+        }
+
+        #branchIcon {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #3b433b;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 20px;
+            cursor: pointer;
+            display: none;
+        }
+
+        .color-box {
+            width: 20px;
+            height: 20px;
+            margin: 5px;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        #colorPalette {
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            width: 120px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toolbar">
+        <button id="add-node">Add Node</button>
+        <button id="save-map">Save Map</button>
+        <button id="load-map">Load Map</button>
+        <button id="zoom-in">Zoom In</button>
+        <button id="zoom-out">Zoom Out</button>
+        <input type="file" id="file-input" style="display: none;" />
+    </div>
+
+
+    <div id="plusIcon">+</div>
+    <div id="branchIcon">*</div>
+
+    <canvas id="mindmapCanvas"></canvas>
+    <div id="colorPalette" style="position: absolute; display: none;">
+        <div class="color-box" style="background-color: #FF5733;"></div>
+        <div class="color-box" style="background-color: #33FF57;"></div>
+        <div class="color-box" style="background-color: #3357FF;"></div>
+        <div class="color-box" style="background-color: #FF33A1;"></div>
+        <div class="color-box" style="background-color: #FFBD33;"></div>
+        <div class="color-box" style="background-color: #33FFD1;"></div>
+        <div class="color-box" style="background-color: #8D33FF;"></div>
+        <div class="color-box" style="background-color: #FF335E;"></div>
+        <div class="color-box" style="background-color: #33FFBD;"></div>
+        <div class="color-box" style="background-color: #333EFF;"></div>
+    </div>
+
+    <input id="nodeTextInput" style="position: absolute; display: none;" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+
+        let isPanning = false;
+        let startX = 0;
+        let startY = 0;
+        let panX = 0;
+        let panY = 0;
+        let lastPanX = 0;
+        let lastPanY = 0;
+
+
+        const canvas = document.getElementById('mindmapCanvas');
+        const ctx = canvas.getContext('2d');
+        const plusIcon = document.getElementById('plusIcon');
+        const branchIcon = document.getElementById('branchIcon');
+
+        let zoomFactor = 1;  // Initial zoom scale
+        const zoomStep = 0.1;  // How much to zoom in/out with each action
+        let nodes = [];
+        let edges = [];
+        let selectedNode = null;
+        let draggingNode = null;
+        let offsetX, offsetY;
+        let hoveredNode = null;
+
+
+
+
+
+        // Handle color selection
+        document.querySelectorAll('.color-box').forEach((box) => {
+            box.addEventListener('click', (e) => {
+                if (selectedNode) {
+                    const newColor = e.target.style.backgroundColor;
+                    if (selectedNode.type === 'branch') {
+                        selectedNode.color = newColor;  // Change the underline color for branch-style nodes
+                    } else {
+                        selectedNode.color = newColor;  // Change the fill color for circular nodes
+                    }
+                    redraw();  // Redraw the canvas with the new node color
+                    document.getElementById('colorPalette').style.display = 'none';  // Hide the color palette after color selection
+                }
+            });
+        });
+
+
+
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Node Constructor
+        function Node(x, y, text = 'Node') {
+            this.x = x;
+            this.y = y;
+            this.text = text;
+            this.radius = 30;
+        }
+
+        // Edge Constructor
+        function Edge(startNode, endNode) {
+            this.startNode = startNode;
+            this.endNode = endNode;
+        }
+
+        // Draw a single node
+        function drawNode(node) {
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#4CAF50';
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(node.text, node.x, node.y);
+        }
+
+        // Draw edges between nodes
+        function drawEdge(edge) {
+            ctx.beginPath();
+            ctx.moveTo(edge.startNode.x, edge.startNode.y);
+
+            if (edge.endNode.type === 'branch') {
+                const textWidth = ctx.measureText(edge.endNode.text).width;
+                // Adjust the line to stop before the text begins
+                ctx.lineTo(edge.endNode.x - textWidth / 2 - 20, edge.endNode.y);
+            } else {
+                ctx.lineTo(edge.endNode.x, edge.endNode.y);
+            }
+
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+        }
+
+
+        // Redraw the entire canvas
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();  // Save the canvas state
+
+            // Apply the panning offset before zooming
+            ctx.translate(panX, panY);
+            // Apply the zoom scale
+            ctx.scale(zoomFactor, zoomFactor);
+
+            // Draw edges and nodes
+            edges.forEach(drawEdge);
+            nodes.forEach(drawNode);
+
+            ctx.restore();  // Restore canvas state
+        }
+
+
+
+        // Add node to the canvas
+        document.getElementById('add-node').addEventListener('click', () => {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const newNode = new Node(x, y);
+            nodes.push(newNode);
+            redraw();
+            enableTextEdit(newNode);  // Immediately enable text editing on creation
+        });
+
+        function enableTextEdit(node) {
+            const input = document.getElementById('nodeTextInput');
+
+            // Calculate the node's position on the screen based on the canvas transformations (pan and zoom)
+            const adjustedX = (node.x * zoomFactor) + panX;  // Adjust X based on zoom and pan
+            const adjustedY = (node.y * zoomFactor) + panY;  // Adjust Y based on zoom and pan
+
+            // Set the position and size of the input field to match the node's location and size
+            input.style.left = `${adjustedX - node.radius * zoomFactor}px`;  // Center the input horizontally on the node
+            input.style.top = `${adjustedY - node.radius * zoomFactor / 2}px`;  // Center the input vertically on the node
+            input.style.width = `${node.radius * zoomFactor * 2}px`;  // Adjust the width to match the node's zoomed size
+
+            // Set the input field's value to the node's current text
+            input.value = node.text;
+            input.style.display = 'block';  // Show the input field
+            input.focus();  // Set focus to the input field for immediate editing
+
+            // Save the text when the input loses focus
+            input.onblur = () => {
+                // Update the node's text or retain the original if no changes are made
+                node.text = input.value.trim() !== '' ? input.value : node.text;
+                input.style.display = 'none';  // Hide the input field after editing
+                redraw();  // Redraw the canvas to update the node text
+            };
+
+            // Allow the user to save the text with the "Enter" key
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    input.blur();  // Trigger blur event to save and hide the input field
+                }
+            };
+        }
+
+
+        // Detect click on a node
+        function getNodeAt(x, y) {
+            return nodes.find(node => {
+                if (node.type === 'branch') {
+                    // Check if the x and y are within the text's bounding box
+                    const textWidth = ctx.measureText(node.text).width;
+                    const textHeight = 20;  // Approximate text height
+                    return (
+                        x >= node.x - textWidth / 2 &&
+                        x <= node.x + textWidth / 2 &&
+                        y >= node.y - textHeight / 2 &&
+                        y <= node.y + textHeight / 2
+                    );
+                } else {
+                    // Default circular node hit detection
+                    return Math.sqrt((node.x - x) ** 2 + (node.y - y) ** 2) < node.radius;
+                }
+            });
+        }
+
+
+        // Function to create a branch-style node
+        function createBranchNode(x, y) {
+            return {
+                x: x,
+                y: y,
+                text: 'Branch Node',
+                type: 'branch',  // New node type for differentiating
+                color: '#4CAF50',  // Default underline color
+                type: 'branch'
+            };
+        }
+
+        function drawNode(node) {
+            if (node.type === 'branch') {
+                console.log("drawNode Branch", node);
+                // Drawing branch-style node (text with underline)
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Draw the text
+                ctx.fillStyle = '#000';  // Text color stays black
+                ctx.fillText(node.text, node.x, node.y);
+
+                // Draw the underline (the branch effect)
+                const textWidth = ctx.measureText(node.text).width;
+                const underlineY = node.y + 10;  // Position of the underline below the text
+
+                ctx.beginPath();
+                ctx.moveTo(node.x - textWidth / 2, underlineY);  // Start of underline
+                ctx.lineTo(node.x + textWidth / 2, underlineY);  // End of underline
+                ctx.lineWidth = 4;  // Thickness of the underline
+                ctx.strokeStyle = node.color || '#4CAF50';  // Underline color (default or chosen)
+                ctx.stroke();
+
+            } else {
+                // Default circle node drawing logic
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+                ctx.fillStyle = node.color || '#4CAF50';  // Use node-specific color or default
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(node.text, node.x, node.y);
+            }
+        }
+
+
+
+        // Handle dragging and connecting nodes
+        canvas.addEventListener('mousedown', (e) => {
+            const x = e.offsetX;
+            const y = e.offsetY;
+
+            const node = getNodeAt(x, y);
+            if (node) {
+                draggingNode = node;
+                offsetX = x - node.x;
+                offsetY = y - node.y;
+            } else if (selectedNode) {
+                const targetNode = getNodeAt(x, y);
+                if (targetNode && targetNode !== selectedNode) {
+                    edges.push(new Edge(selectedNode, targetNode));
+                }
+                selectedNode = null;
+            } else {
+                selectedNode = getNodeAt(x, y);
+            }
+
+            redraw();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const x = (e.offsetX - panX) / zoomFactor;  // Adjust for zoom and pan
+            const y = (e.offsetY - panY) / zoomFactor;  // Adjust for zoom and pan
+
+            hoveredNode = getNodeAt(x, y);
+
+            if (hoveredNode) {
+                // Calculate the adjusted position based on the node's type
+                const adjustedX = (hoveredNode.x * zoomFactor) + panX;
+                const adjustedY = (hoveredNode.y * zoomFactor) + panY;
+
+                if (hoveredNode.type === 'branch') {
+                    // Branch node: use text width and height to position icons
+                    const textWidth = ctx.measureText(hoveredNode.text).width;
+                    const textHeight = 16; // Approximate height of the text
+
+                    // Position the + button at the bottom of the branch node
+                    plusIcon.style.left = `${adjustedX - 10}px`;  // Center the + icon horizontally
+                    plusIcon.style.top = `${adjustedY + textHeight / 2 + 10}px`;  // Position below the text
+                    plusIcon.style.display = 'block';
+
+                    // Position the * button at the top of the branch node
+                    branchIcon.style.left = `${adjustedX - 10}px`;  // Center the * icon horizontally
+                    branchIcon.style.top = `${adjustedY - textHeight / 2 - 20}px`;  // Position above the text
+                    branchIcon.style.display = 'block';
+                } else {
+                    // Circular node: use the radius to position the icons
+                    plusIcon.style.left = `${adjustedX - 10}px`;  // Center the + icon horizontally
+                    plusIcon.style.top = `${adjustedY + hoveredNode.radius * zoomFactor - 10}px`;  // Position below the node
+                    plusIcon.style.display = 'block';
+
+                    // Position the * button at the top of the circular node
+                    branchIcon.style.left = `${adjustedX - 10}px`;  // Center the * icon horizontally
+                    branchIcon.style.top = `${adjustedY - hoveredNode.radius * zoomFactor - 10}px`;  // Position above the node
+                    branchIcon.style.display = 'block';
+                }
+            } else {
+                // Hide the icons if no node is hovered
+                plusIcon.style.display = 'none';
+                branchIcon.style.display = 'none';
+            }
+
+            // Handle node dragging
+            if (draggingNode) {
+                draggingNode.x = x;
+                draggingNode.y = y;
+                redraw();
+            }
+        });
+
+
+
+
+
+        canvas.addEventListener('mouseup', () => {
+            draggingNode = null;
+        });
+
+        canvas.addEventListener('dblclick', (e) => {
+            // Reverse the transformations (pan and zoom) on the mouse coordinates
+            const x = (e.offsetX - panX) / zoomFactor;
+            const y = (e.offsetY - panY) / zoomFactor;
+
+            console.debug(x, y);  // These coordinates should now match the node positions
+            const node = getNodeAt(x, y);
+            if (node) {
+                enableTextEdit(node);  // Enable editing if a node is double-clicked
+            }
+        });
+
+        canvas.addEventListener('wheel', (event) => {
+            if (event.deltaY < 0) {
+                zoomFactor += zoomStep;  // Zoom in
+            } else {
+                zoomFactor = Math.max(zoomFactor - zoomStep, 0.1);  // Zoom out
+            }
+            redraw();  // Redraw the canvas with the new zoom factor
+            event.preventDefault();  // Prevent default scroll behavior
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            const x = (e.offsetX - panX) / zoomFactor;  // Adjust for zoom and pan
+            const y = (e.offsetY - panY) / zoomFactor;  // Adjust for zoom and pan
+
+            const node = getNodeAt(x, y);
+            if (node) {
+                draggingNode = node;  // Start dragging the node (branch or circular)
+                offsetX = x - node.x;
+                offsetY = y - node.y;
+            }
+        });
+
+
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (draggingNode) {
+                const x = (e.offsetX - panX) / zoomFactor;  // Adjust for zoom and pan
+                const y = (e.offsetY - panY) / zoomFactor;  // Adjust for zoom and pan
+
+                draggingNode.x = x - offsetX;
+                draggingNode.y = y - offsetY;
+                redraw();  // Redraw the canvas as the node is being dragged
+            }
+        });
+
+
+        canvas.addEventListener('mouseup', () => {
+            draggingNode = null;  // Stop dragging
+        });
+
+
+        canvas.addEventListener('mouseleave', () => {
+            isPanning = false;
+        });
+
+        // Right-click to show the color palette
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();  // Prevent the default context menu from appearing
+
+            const x = (e.offsetX - panX) / zoomFactor;  // Adjust for zoom and pan
+            const y = (e.offsetY - panY) / zoomFactor;  // Adjust for zoom and pan
+
+            const node = getNodeAt(x, y);
+            if (node) {
+                selectedNode = node;  // Store the selected node
+
+                // Position the color palette next to the node
+                const adjustedX = (node.x * zoomFactor) + panX;
+                const adjustedY = (node.y * zoomFactor) + panY;
+
+                const colorPalette = document.getElementById('colorPalette');
+                colorPalette.style.left = `${adjustedX + node.radius * zoomFactor}px`;  // Show palette to the right of the node
+                colorPalette.style.top = `${adjustedY - node.radius * zoomFactor / 2}px`;
+                colorPalette.style.display = 'block';  // Show the color palette
+            }
+        });
+
+        // Hide the palette when clicking outside or moving the mouse
+        canvas.addEventListener('click', (e) => {
+            const colorPalette = document.getElementById('colorPalette');
+            colorPalette.style.display = 'none';
+        });
+
+
+
+        // Branch-style node creation logic
+        branchIcon.addEventListener('click', () => {
+            if (hoveredNode) {
+                const newNode = createBranchNode(hoveredNode.x + 100, hoveredNode.y);  // Create the branch node next to the hovered node
+                nodes.push(newNode);  // Add the new branch-style node to the nodes array
+                edges.push(new Edge(hoveredNode, newNode));  // Connect the original node to the new branch node
+                redraw();  // Redraw the canvas to reflect the new node and connection
+            }
+        });
+
+
+        // Plus icon click: create a new node connected to the hovered node
+        plusIcon.addEventListener('click', () => {
+            if (hoveredNode) {
+                const newNode = new Node(hoveredNode.x + 100, hoveredNode.y); // Create new node next to the hovered one
+                nodes.push(newNode);
+                edges.push(new Edge(hoveredNode, newNode)); // Connect hovered node with new node
+                redraw();
+            }
+        });
+
+        // Save mind map
+        document.getElementById('save-map').addEventListener('click', () => {
+            const data = {
+                nodes: nodes.map(node => ({ x: node.x, y: node.y, text: node.text })),
+                edges: edges.map(edge => ({
+                    startNodeIndex: nodes.indexOf(edge.startNode),
+                    endNodeIndex: nodes.indexOf(edge.endNode)
+                }))
+            };
+            const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute('href', dataStr);
+            downloadAnchor.setAttribute('download', 'mindmap.json');
+            downloadAnchor.click();
+        });
+
+        // Load mind map
+        document.getElementById('load-map').addEventListener('click', () => {
+            document.getElementById('file-input').click();
+        });
+
+        document.getElementById('file-input').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = JSON.parse(e.target.result);
+                nodes = data.nodes.map(nodeData => new Node(nodeData.x, nodeData.y, nodeData.text));
+                edges = data.edges.map(edgeData => new Edge(nodes[edgeData.startNodeIndex], nodes[edgeData.endNodeIndex]));
+                redraw();
+            };
+            reader.readAsText(file);
+        });
+
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            zoomFactor += zoomStep;  // Increase the zoom factor
+            redraw();  // Redraw the map with the new zoom level
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            zoomFactor = Math.max(zoomFactor - zoomStep, 0.1);  // Decrease but prevent negative/zero zoom
+            redraw();  // Redraw the map with the new zoom level
+        });
+
+
+        // Initial rendering
+        redraw();
+    </script>
+</body>
+
+</html>
