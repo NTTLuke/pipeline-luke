@@ -252,8 +252,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(docs_url="/docs", redoc_url=None, lifespan=lifespan)
 
-app.state.PIPELINES = PIPELINES
 
+app.state.PIPELINES = PIPELINES
 
 origins = ["*"]
 
@@ -781,84 +781,3 @@ async def generate_openai_chat_completion(form_data: OpenAIChatCompletionForm):
                 }
 
     return await run_in_threadpool(job)
-
-
-##############################
-# CUSTOM API FOR SPOTIFY LOGIN
-# These are custom endpoints that should be moved to a separate service.
-##############################
-
-from fastapi.responses import RedirectResponse
-import requests
-
-
-# Spotify API credentials
-CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-SCOPES = "playlist-modify-private playlist-modify-public user-modify-playback-state user-read-playback-state playlist-read-private user-follow-read user-top-read"
-# Spotify API auth URL
-REDIRECT_URI = "http://localhost:9099/spotify/callback"
-AUTH_URL = f"https://accounts.spotify.com/authorize?response_type=code&client_id={CLIENT_ID}&scope={SCOPES}&redirect_uri={REDIRECT_URI}"
-# Spotify API token URL
-TOKEN_URL = "https://accounts.spotify.com/api/token"
-# Redirect URL after login
-REDIRECT_RESPONSE_URL = "http://localhost:8000/static/index3.html?#showForm"
-
-
-@app.get(
-    "/v1/spotify/login",
-    tags=["Custom-Spotify"],
-    description="Redirects to Spotify login page. This is a custom endpoint and should be moved to a separate service.",
-)
-@app.get(
-    "/spotify/login",
-    tags=["Custom-Spotify"],
-    description="Redirects to Spotify login page. This is a custom endpoint and should be moved to a separate service.",
-)
-def spotify_login():
-    return RedirectResponse(url=AUTH_URL)
-
-
-@app.get(
-    "/v1/spotify/callback",
-    tags=["Custom", "Spotify"],
-    description="Callback URL for Spotify login. This is a custom endpoint and should be moved to a separate service.",
-)
-@app.get(
-    "/spotify/callback",
-    tags=["Custom", "Spotify"],
-    description="Callback URL for Spotify login. This is a custom endpoint and should be moved to a separate service.",
-)
-def callback(code: str, request: Request, response: Response) -> RedirectResponse:
-    import asyncio
-
-    payload = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": REDIRECT_URI,
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-    }
-
-    token_response = requests.post(TOKEN_URL, data=payload)
-    if token_response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Error retrieving access token")
-
-    token_data = token_response.json()
-    access_token = token_data["access_token"]
-
-    # Update the access token in the valves.json file
-    form_data = {"spotify_access_token": access_token}
-    pipeline_id = "spotify_pipeline"
-
-    try:
-        asyncio.run(update_valves(pipeline_id, form_data))
-    except Exception as e:
-        print(e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"{str(e)}",
-        )
-
-    # set the response to redirect to the frontend
-    return "Access token retrieved successfully and updated into valves pipeline. You can close this tab now."
