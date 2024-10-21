@@ -1,6 +1,6 @@
 # Customizing an Open-Source Project with Upstream Updates
 
-This guide provides step-by-step instructions to clone an original open-source project, customize it in your private repository, and keep it updated with the upstream changes using **merge** (not rebase).
+This guide provides step-by-step instructions to clone an original open-source project, customize it in your "custom" repository, and keep it updated with the upstream changes using **merge** (not rebase).
 
 ## Table of Contents
 
@@ -147,4 +147,4 @@ git push
 
 ---
 
-By following this guide, you'll maintain a private, customized version of an open-source project that stays synchronized with the original repository's updates using merges.
+By following this guide, you'll maintain a customized version of an open-source project that stays synchronized with the original repository's updates using merges.
