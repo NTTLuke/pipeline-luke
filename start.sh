@@ -129,4 +129,6 @@ fi
 
 
 # Start the server
-uvicorn main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*'
+# uvicorn main:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*'
+
+uvicorn spotify_auth_routes:app --host "$HOST" --port "$PORT" --forwarded-allow-ips '*'

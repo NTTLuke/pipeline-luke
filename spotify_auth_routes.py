@@ -1,5 +1,5 @@
 ##############################
-# CUSTOM API FOR SPOTIFY AUTH ENDPOING
+# CUSTOM FOR SPOTIFY AUTH
 ##############################
 
 from fastapi.responses import RedirectResponse
@@ -25,10 +25,6 @@ AUTH_URL = f"https://accounts.spotify.com/authorize?response_type=code&client_id
 
 # Spotify API token URL
 TOKEN_URL = "https://accounts.spotify.com/api/token"
-
-# Redirect URL after login
-# REDIRECT_RESPONSE_URL = "http://localhost:8000/static/index3.html?#showForm"
-
 
 # add the custom router to the main app
 spotify_router = APIRouter()

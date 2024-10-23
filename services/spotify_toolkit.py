@@ -26,8 +26,8 @@ class SpotifyPlaylistTools(Toolkit):
         logger.error(f"Error invoking {function_name}: {e}")
         logger.error(traceback.format_exc())
 
-        if e.response.status_code >= 400:
-            return "Unauthorized access to Spotify. Please regenerate a new access token. Use this link http://localhost:9099/spotify/login and copy the access token into Spotify Pipeline configuration."
+        if e.response.status_code in [400, 401, 403]:
+            return "Unauthorized access to Spotify. Please regenerate a new access token. Use this link http://localhost:9099/spotify/login for retrieving a new access token."
 
         return f"Error in {function_name}: {str(e)}"
 
