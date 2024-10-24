@@ -2,7 +2,8 @@
 
 ### Demo
 
-[<video/>](https://github.com/NTTLuke/pipeline-luke/raw/main/assets/demo.mp4)
+https://github.com/user-attachments/assets/9cca1c9c-a90b-4c51-96fb-762143a146f2
+
 
 > NOTE: As you can see in the demo, the first time you use the pipeline, you will need to grant access to your Spotify app. The same applies when the access token expires.
 
