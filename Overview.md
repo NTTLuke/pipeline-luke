@@ -1,4 +1,4 @@
-![Schema](assets/schema.jpg)
+![Schema](assets/schema_2.jpg)
 
 ### Notes and Caveats
 
