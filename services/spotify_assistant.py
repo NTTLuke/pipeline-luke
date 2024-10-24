@@ -29,7 +29,7 @@ class SpotifyPlaylistAgent:
             ],
             instructions=[
                 "Analyze the provided text to identify the music genre and context.",
-                "Checking user favourite spotify artists in the playlist.",
+                "Checking user favourite spotify artists and use them as priority in the search.",
                 "Search for **10 SONGS ONLY** that best match the identified genre and context. User preferences must be prioritized in your search.",
                 "If you are not able to identify genres, use your expertise to select the most fitting music based on the context.",
             ],
@@ -38,7 +38,7 @@ class SpotifyPlaylistAgent:
                 "You specialize in interpreting a wide range of textual data to identify genres and songs that best match the provided context."
                 "You are highly skilled in discovering music online, specializing in identifying and curating songs that match the user's preferences."
             ),
-            output="Provide a list of 10 songs based on the analysis of the text and the identified music genre.",
+            output="Provide a list of 10 songs",
             show_tool_calls=True,
             # read_chat_history=True,
             add_history_to_messages=True,
@@ -139,7 +139,8 @@ if __name__ == "__main__":
     run_id = "1"
     user_id = "luke"
     # user_message = "Let's create a acoustic  playlist for my honeymoon trip. Include my favourite spotify artists."
-    user_message = "Let's create a dance playlist for my birthday party."
+    # user_message = "Let's create a dance playlist for my birthday party."
+    user_message = "Let's create a rock and pop playlist for relaxing at home."
 
     spotify_playlist_agent = SpotifyPlaylistAgent()
     team = spotify_playlist_agent.get_team(
