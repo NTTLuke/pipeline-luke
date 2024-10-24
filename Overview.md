@@ -25,6 +25,7 @@ In the case of an expired access token, the Spotify Toolkit returns the login UR
 ```
 
 To manage Spotify authentication, there are custom demo endpoints in the file `spotify_auth_routes.py` to update pipeline valves for Spotify access token. The file updates the pipeline FastAPI app routes, providing seamless integration and avoiding pipeline update conflicts (99% :P)
+For more information on how I configured this repository [Repo Config](./Overview.md).
 
 `start.bat` file has been updated to start with `spotify_auth_routes.py`.
 
