@@ -1,5 +1,9 @@
 ![Schema](assets/schema_2.jpg)
 
+### Demo
+
+> NOTE: As you can see in the demo, the first time you use the pipeline, you will need to grant access to your Spotify app. The same applies when the access token expires.
+
 ### Notes and Caveats
 
 This project demonstrates a pipeline where the agent is implemented as an external service, located under the `services` folder of the pipeline project.
@@ -84,10 +88,6 @@ To set up the OpenWebUI project, follow these steps:
 5. **Configure pipeline on OpenWebUI**
 
    For more details, refer to the [OpenWebUI Pipelines Documentation](https://docs.openwebui.com/pipelines/).
-
-   After completing the configuration, you will see this:
-
-   ![Schema](assets/pipelines_view.jpg)
 
    Now, feel free to ask for a playlist! 😉
 
