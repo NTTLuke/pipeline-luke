@@ -1,7 +1,3 @@
-<div style="text-align: center;">
-  <img src="./assets/funny.jpg" alt="Schema" width="300">
-</div>
-
 ![Schema](assets/schema.jpg)
 
 ### Notes and Caveats
