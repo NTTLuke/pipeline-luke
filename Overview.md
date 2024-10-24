@@ -2,7 +2,10 @@
 
 ### Demo
 
-[<video/>](https://github.com/NTTLuke/pipeline-luke/blob/c68cb79cc25cf4b12ea589ddc4169e0ec657e5bb/assets/demo.mp4)
+<video width="600" controls>
+  <source src="https://github.com/NTTLuke/pipeline-luke/raw/main/assets/demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 > NOTE: As you can see in the demo, the first time you use the pipeline, you will need to grant access to your Spotify app. The same applies when the access token expires.
 
