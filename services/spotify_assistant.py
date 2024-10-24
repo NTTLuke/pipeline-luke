@@ -16,15 +16,21 @@ class SpotifyPlaylistAgent:
         self.llm = OpenAIChat(model="gpt-4o", api_key=os.getenv("MY_OPENAI_API_KEY"))
         # self.llm = Ollama(model="llama3.2:1b")
 
-    def _get_dj_expert(self, run_id: str, user_id: str) -> Agent:
+    def _get_dj_expert(self, access_token: str, run_id: str, user_id: str) -> Agent:
         return Agent(
             name="DJ Expert",
-            role="Analyze text and recommend songs based on context and genre.",
+            role="Analyze text and recommend songs based on context , genre and user preferences",
             model=self.llm,
-            tools=[SearchTools.search_internet],
+            tools=[
+                SpotifyPlaylistTools(
+                    access_token=access_token
+                ).get_user_favourites_artists,
+                SearchTools.search_internet,
+            ],
             instructions=[
                 "Analyze the provided text to identify the music genre and context.",
-                "Search for **10 SONGS ONLY** that best match the identified genre and context.",
+                "Check if user wants to include his favourite artists in the playlist, then use the Spotify API to get the top tracks of the artists.",
+                "Search for **10 SONGS ONLY** that best match the identified genre and context and if include favourite artists if provided",
                 "If specific genres are not mentioned, use your expertise to select the most fitting genre based on the context.",
             ],
             description=(
@@ -34,7 +40,7 @@ class SpotifyPlaylistAgent:
             ),
             output="Provide a list of 10 songs based on the analysis of the text and the identified music genre.",
             show_tool_calls=True,
-            read_chat_history=True,
+            # read_chat_history=True,
             add_history_to_messages=True,
             num_history_responses=3,
             run_id=run_id,
@@ -71,7 +77,7 @@ class SpotifyPlaylistAgent:
             show_tool_calls=True,
             # markdown=True,
             # storage=self.storage,
-            read_chat_history=True,
+            # read_chat_history=True,
             add_history_to_messages=True,
             num_history_responses=3,
             # debug_mode=True,
@@ -108,17 +114,19 @@ class SpotifyPlaylistAgent:
             ],
             expected_output="The response to the user must include the link of the playlist created with the Id.",
             team=[
-                self._get_dj_expert(run_id=run_id, user_id=user_id),
+                self._get_dj_expert(
+                    access_token=access_token, run_id=run_id, user_id=user_id
+                ),
                 self._get_spotify_api_expert(
                     access_token=access_token, run_id=run_id, user_id=user_id
                 ),
             ],
             markdown=True,
             # storage=self.storage,
-            read_chat_history=True,
+            # read_chat_history=True,
             add_history_to_messages=True,
             num_history_responses=3,
-            # debug_mode=True,
+            debug_mode=True,
             run_id=run_id,
             user_id=user_id,
         )
@@ -127,14 +135,14 @@ class SpotifyPlaylistAgent:
 if __name__ == "__main__":
 
     print(f"pipe:{__name__}")
-    access_token = "YOUR_SPOTIFY_ACCESS_TOKEN"
+    access_token = ""
     run_id = "1"
     user_id = "luke"
-    user_message = "Let's create a folk playlist for my car trip."
+    user_message = "Let's create a acoustic piano playlist for my honeymoon trip. Include my favourite spotify artists."
 
     spotify_playlist_agent = SpotifyPlaylistAgent()
     team = spotify_playlist_agent.get_team(
         access_token=access_token, run_id=run_id, user_id=user_id
     )
 
-    team.print_response(user_message=user_message, markdown=True)
+    response = team.print_response(message=user_message, markdown=True)

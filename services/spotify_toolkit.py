@@ -19,6 +19,7 @@ class SpotifyPlaylistTools(Toolkit):
         self.register(self.search_songs_uris)
         self.register(self.create_playlist_by_uris)
         self.register(self.start_playlist_playback)
+        self.register(self.get_user_favourites_artists)
 
         self.access_token = access_token
 
@@ -160,6 +161,57 @@ class SpotifyPlaylistTools(Toolkit):
 
         except Exception as e:
             return self._handle_request_error(e, "create_playlist_by_uris")
+
+    def get_user_favourites_artists(
+        self, limit=10, time_range="medium_term", genres_filter=None
+    ):
+        """
+        Useful for retrieving user's favourite Spotify artists.
+        It returns the top artists based on the user's listening history, optionally filtered by genre.
+
+        Parameters:
+        - limit (int): The number of top artists to return (default is 10).
+        - time_range (str): The time range to consider for top artists. Options include:
+            - 'short_term': Over the last 4 weeks
+            - 'medium_term': Over the last 6 months (default)
+            - 'long_term': Over the user's entire Spotify listening history
+        - genres_filter (list): A list of genres to filter the artists by. If None, no genre filtering is applied (default is None).
+        """
+
+        try:
+            url = f"https://api.spotify.com/v1/me/top/artists?limit={limit}&time_range={time_range}"
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+
+            items = response.json()["items"]
+            top_artists_genres = []
+
+            for artist in items:
+                artist_name = artist["name"]
+                artist_genres = artist["genres"]
+
+                # Filter artists based on genres if a filter is provided
+                if genres_filter:
+                    # Check if any of the artist's genres match the genres_filter
+                    if not any(
+                        genre.lower() in [g.lower() for g in artist_genres]
+                        for genre in genres_filter
+                    ):
+                        continue  # Skip this artist if none of the genres match
+
+                genres = (
+                    ", ".join(artist_genres) if artist_genres else "No genres available"
+                )
+                artist_info = f"Artist: {artist_name}, Genres: {genres}"
+                top_artists_genres.append(artist_info)
+
+            # Return the list as a formatted string
+            return "\n".join(top_artists_genres)
+
+        except Exception as e:
+            return self._handle_request_error(e, "get_favorite_artists")
 
     def start_playlist_playback(self, playlist_id: str) -> str:
         """
