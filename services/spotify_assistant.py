@@ -19,7 +19,7 @@ class SpotifyPlaylistAgent:
     def _get_dj_expert(self, access_token: str, run_id: str, user_id: str) -> Agent:
         return Agent(
             name="DJ Expert",
-            role="Analyze text and recommend songs based on context , genre and user preferences",
+            role="Analyze text and recommend songs based on context, genre and user preferences",
             model=self.llm,
             tools=[
                 SpotifyPlaylistTools(
@@ -29,14 +29,14 @@ class SpotifyPlaylistAgent:
             ],
             instructions=[
                 "Analyze the provided text to identify the music genre and context.",
-                "Check if user wants to include his favourite artists in the playlist, then use the Spotify API to get the top tracks of the artists.",
-                "Search for **10 SONGS ONLY** that best match the identified genre and context and if include favourite artists if provided",
-                "If specific genres are not mentioned, use your expertise to select the most fitting genre based on the context.",
+                "Checking user favourite spotify artists in the playlist.",
+                "Search for **10 SONGS ONLY** that best match the identified genre and context. User preferences must be prioritized in your search.",
+                "If you are not able to identify genres, use your expertise to select the most fitting music based on the context.",
             ],
             description=(
                 "You are a DJ with decades of experience in analyzing textual information to select and recommend music. "
-                "You specialize in interpreting a wide range of textual data to identify genres and songs that best match the provided context. "
-                "You are highly skilled in discovering music online, specializing in identifying and curating songs."
+                "You specialize in interpreting a wide range of textual data to identify genres and songs that best match the provided context."
+                "You are highly skilled in discovering music online, specializing in identifying and curating songs that match the user's preferences."
             ),
             output="Provide a list of 10 songs based on the analysis of the text and the identified music genre.",
             show_tool_calls=True,
@@ -138,7 +138,8 @@ if __name__ == "__main__":
     access_token = ""
     run_id = "1"
     user_id = "luke"
-    user_message = "Let's create a acoustic piano playlist for my honeymoon trip. Include my favourite spotify artists."
+    # user_message = "Let's create a acoustic  playlist for my honeymoon trip. Include my favourite spotify artists."
+    user_message = "Let's create a dance playlist for my birthday party."
 
     spotify_playlist_agent = SpotifyPlaylistAgent()
     team = spotify_playlist_agent.get_team(
