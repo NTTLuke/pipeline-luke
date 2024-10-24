@@ -33,6 +33,7 @@ class SpotifyPlaylistAgent:
                 "You are highly skilled in discovering music online, specializing in identifying and curating songs."
             ),
             output="Provide a list of 10 songs based on the analysis of the text and the identified music genre.",
+            show_tool_calls=True,
             read_chat_history=True,
             add_history_to_messages=True,
             num_history_responses=3,
