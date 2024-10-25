@@ -1,8 +1,10 @@
 from phi.agent import Agent
 from phi.model.openai import OpenAIChat
+from phi.model.azure import AzureOpenAIChat
 from phi.model.ollama import Ollama
 from services.spotify_toolkit import SpotifyPlaylistTools
 from services.search_tool import SearchTools
+from phi.utils.log import logger
 import os
 
 
@@ -10,21 +12,28 @@ class SpotifyPlaylistAgent:
     def __init__(
         self,
     ):
-        if os.getenv("MY_OPENAI_API_KEY") is None:
-            raise ValueError("OpenAI API key is required to create the PlaylistAgent.")
-
+        # initialize the LLM model
         self.llm = OpenAIChat(model="gpt-4o", api_key=os.getenv("MY_OPENAI_API_KEY"))
-        # self.llm = Ollama(model="llama3.2:1b")
 
-    def _get_dj_expert(self, access_token: str, run_id: str, user_id: str) -> Agent:
-        return Agent(
+        # self.llm = AzureOpenAIChat(
+        #     id=os.getenv("AZURE_OPENAI_MODEL_NAME"),
+        #     api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        #     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        #     azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        # )
+
+        # self.ollama = Ollama()
+
+        # initialize the spotify toolkit
+        self.spotify_tool = SpotifyPlaylistTools(access_token=None)
+
+        # initialize the DJ Expert
+        self.dj_expert = Agent(
             name="DJ Expert",
             role="Analyze text and recommend songs based on context, genre and user preferences",
             model=self.llm,
             tools=[
-                SpotifyPlaylistTools(
-                    access_token=access_token
-                ).get_user_favourites_artists,
+                self.spotify_tool.get_user_favourites_artists,
                 SearchTools.search_internet,
             ],
             instructions=[
@@ -40,25 +49,13 @@ class SpotifyPlaylistAgent:
             ),
             output="Provide a list of 10 songs",
             show_tool_calls=True,
-            # read_chat_history=True,
+            read_chat_history=True,
             add_history_to_messages=True,
             num_history_responses=3,
-            run_id=run_id,
-            user_id=user_id,
         )
 
-    def _get_spotify_api_expert(
-        self, access_token: str, run_id: str, user_id: str
-    ) -> Agent:
-
-        if not access_token:
-            raise ValueError(
-                "Access token is required to create the Spotify API Expert."
-            )
-
-        self.access_token = access_token
-
-        return Agent(
+        # initialize the spoty Expert
+        self.spotify_api_expert = Agent(
             name="Spotify API Expert",
             model=self.llm,
             role="Expert in using Spotify API for different operations",
@@ -73,32 +70,18 @@ class SpotifyPlaylistAgent:
                 "The response to the user must include the link of the playlist created with the Id."
             ],
             output="The result of the action you have performed.",
-            tools=[SpotifyPlaylistTools(access_token=self.access_token)],
+            tools=[self.spotify_tool],
             show_tool_calls=True,
             # markdown=True,
             # storage=self.storage,
-            # read_chat_history=True,
+            read_chat_history=True,
             add_history_to_messages=True,
             num_history_responses=3,
             # debug_mode=True,
-            run_id=run_id,
-            user_id=user_id,
         )
 
-    def get_team(self, access_token: str, run_id: str, user_id: str) -> Agent:
-
-        if not access_token:
-            raise ValueError(
-                "Access token is required to create the SpotifyPlaylistTeam."
-            )
-
-        if not run_id:
-            raise ValueError("Run ID is required to create the SpotifyPlaylistTeam.")
-
-        if not user_id:
-            raise ValueError("User ID is required to create the SpotifyPlaylistTeam.")
-
-        return Agent(
+        # init the Spotify Team
+        self.team = Agent(
             model=self.llm,
             name="Spotify Playlist Creator Team",
             description="You are a highly capable AI agent known as the Spotify Playlist Creator Team, with access to a team of specialized AI assistants at your disposal."
@@ -114,37 +97,52 @@ class SpotifyPlaylistAgent:
             ],
             expected_output="The response to the user must include the link of the playlist created with the Id.",
             team=[
-                self._get_dj_expert(
-                    access_token=access_token, run_id=run_id, user_id=user_id
-                ),
-                self._get_spotify_api_expert(
-                    access_token=access_token, run_id=run_id, user_id=user_id
-                ),
+                self.dj_expert,
+                self.spotify_api_expert,
             ],
             markdown=True,
             # storage=self.storage,
-            # read_chat_history=True,
+            read_chat_history=True,
             add_history_to_messages=True,
             num_history_responses=3,
             debug_mode=True,
-            run_id=run_id,
-            user_id=user_id,
         )
+
+        print(f"Spotify Playlist Agent Initialized")
+
+    def get_team(self, access_token: str) -> Agent:
+        if not access_token:
+            raise ValueError(
+                "Access token is required to create the SpotifyPlaylistTeam."
+            )
+        self.spotify_tool.update_access_token(access_token=access_token)
+        return self.team
 
 
 if __name__ == "__main__":
 
-    print(f"pipe:{__name__}")
-    access_token = ""
-    run_id = "1"
-    user_id = "luke"
+    SPOTIFY_ACCESS_TOKEN = "__SET_A_VALID_TOKEN_FOR_TEST__"
+
     # user_message = "Let's create a acoustic  playlist for my honeymoon trip. Include my favourite spotify artists."
     # user_message = "Let's create a dance playlist for my birthday party."
     user_message = "Let's create a rock and pop playlist for relaxing at home."
 
     spotify_playlist_agent = SpotifyPlaylistAgent()
-    team = spotify_playlist_agent.get_team(
-        access_token=access_token, run_id=run_id, user_id=user_id
-    )
+    team = spotify_playlist_agent.get_team(access_token="XXX")
 
-    response = team.print_response(message=user_message, markdown=True)
+    user_message = "Crea una playlist di musica rock e pop per rilassarti a casa."
+    team.print_response(
+        message=user_message, markdown=True
+    )  # error since the token is invalid
+    print(team.memory.chats)
+    print(team.memory.messages)
+
+    team = spotify_playlist_agent.get_team(
+        access_token=SPOTIFY_ACCESS_TOKEN
+    )  # token is valid
+    user_message = "Fallo ora."
+    team.print_response(message=user_message, markdown=True)
+
+    # memory preservation/same instance
+    print(team.memory.chats)
+    print(team.memory.messages)

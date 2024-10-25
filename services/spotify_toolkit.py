@@ -23,11 +23,21 @@ class SpotifyPlaylistTools(Toolkit):
 
         self.access_token = access_token
 
+    def update_access_token(self, access_token: str):
+        """
+        Update the access token for the Spotify API requests.
+
+        Args:
+            access_token : str : The new access token to use for API requests.
+        """
+        self.access_token = access_token
+
     def _handle_request_error(self, e: Exception, function_name: str):
         logger.error(f"Error invoking {function_name}: {e}")
         logger.error(traceback.format_exc())
 
         if e.response.status_code in [400, 401, 403]:
+            logger.error(f"Toolkit access token : {self.access_token}")
             return "Unauthorized access to Spotify. Please regenerate a new access token. Use this link http://localhost:9099/spotify/login for retrieving a new access token."
 
         return f"Error in {function_name}: {str(e)}"

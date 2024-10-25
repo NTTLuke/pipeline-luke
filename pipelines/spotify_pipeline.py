@@ -34,6 +34,9 @@ class Pipeline:
         self.valves = self.Valves(**{"pipelines": ["*"]})
 
         self.chat_id = None
+        self.spoty_agent = SpotifyPlaylistAgent()
+
+        print(f"Spotify Pipeline Initialized")
 
     async def on_startup(self):
         # This function is called when the server is started.
@@ -46,12 +49,12 @@ class Pipeline:
         pass
 
     async def inlet(self, body: dict, user: Optional[dict] = None) -> dict:
-        print(f"inlet:{__name__}")
-        print(f"user: {user}")
-        print(f"body: {body}")
+        # print(f"inlet:{__name__}")
+        # print(f"user: {user}")
+        # print(f"body: {body}")
         # Store the chat_id from body
         self.chat_id = body.get("chat_id")
-        print(f"Stored chat_id: {self.chat_id}")
+        # print(f"Stored chat_id: {self.chat_id}")
 
         return body
 
@@ -59,12 +62,14 @@ class Pipeline:
         self, user_message: str, model_id: str, messages: List[dict], body: dict
     ) -> Union[str, Generator, Iterator]:
         # This is where you can add your custom pipelines like RAG.
-        print(f"pipe:{__name__}")
-        print(f"BODY: {body}")
+        # print(f"pipe:{__name__}")
+        # print(f"BODY: {body}")
 
-        access_token = self.valves.spotify_access_token
-        print(access_token)
-        if not access_token:
+        # Get the access token from the valves
+        SPOTIFY_ACCESS_TOKEN = self.valves.spotify_access_token
+
+        # print(access_token)
+        if not SPOTIFY_ACCESS_TOKEN:
             raise ValueError(
                 "Spotify access token is required to create the MusicAssistant."
             )
@@ -72,23 +77,19 @@ class Pipeline:
         if body.get("title", False):
             print("Title Generation Request")
 
-        print(f"chat_id available in pipe: {self.chat_id}")
+        # print(f"chat_id available in pipe: {self.chat_id}")
         chat_id = self.chat_id
         if chat_id is None:
             raise ValueError("chat_id is required to create the MusicAssistant.")
 
-        user_info = body["user"]
-        user_id = user_info["id"]
-
-        assistant = SpotifyPlaylistAgent()
-        team = assistant.get_team(
-            access_token=access_token, run_id=chat_id, user_id=user_id
-        )
+        team = self.spoty_agent.get_team(access_token=SPOTIFY_ACCESS_TOKEN)
+        # print(f"MEMORY MESSAGES: {team.memory.messages}")
+        # print(f"MEMORY CHATS : {team.memory.chats}")
 
         try:
             for chunk in team.run(
                 message=user_message,
-                messages=messages,
+                # messages=messages,
                 stream=True,
                 # stream_intermediate_steps=True,
             ):
